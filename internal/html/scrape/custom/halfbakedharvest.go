@@ -2,15 +2,20 @@ package custom
 
 import (
 	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/kkyr/go-recipe"
+	"github.com/kkyr/go-recipe/internal/html"
 	"github.com/kkyr/go-recipe/internal/html/scrape/schema"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
 const HalfBakedHarvestHost = "halfbakedharvest.com"
+
+// stepNumberRE matches a leading step number such as "1. " or "12) ".
+var stepNumberRE = regexp.MustCompile(`^\d+[.)]\s*`)
 
 // NewHalfBakedHarvestScraper returns a new instance of HalfBakedHarvestScraper.
 func NewHalfBakedHarvestScraper(doc *goquery.Document) (recipe.Scraper, error) {
@@ -19,11 +24,12 @@ func NewHalfBakedHarvestScraper(doc *goquery.Document) (recipe.Scraper, error) {
 		return nil, fmt.Errorf("unable to create schema scraper: %w", err)
 	}
 
-	return &HalfBakedHarvestScraper{schema: s}, nil
+	return &HalfBakedHarvestScraper{doc: doc, schema: s}, nil
 }
 
 // HalfBakedHarvestScraper is a custom recipe scraper for halfbakedharvest.com.
 type HalfBakedHarvestScraper struct {
+	doc    *goquery.Document
 	schema *schema.RecipeScraper
 }
 
@@ -55,7 +61,22 @@ func (m *HalfBakedHarvestScraper) Ingredients() ([]string, bool) {
 	return m.schema.Ingredients()
 }
 
+// Instructions returns the recipe instructions. halfbakedharvest.com (powered
+// by WP Recipe Maker) packs every numbered step into a single HowToStep in its
+// JSON-LD output, so we instead extract one step per <span> inside the
+// .wprm-recipe-instruction-text element.
 func (m *HalfBakedHarvestScraper) Instructions() ([]string, bool) {
+	var steps []string
+	m.doc.Find(".wprm-recipe-instruction-text > span").Each(func(_ int, sel *goquery.Selection) {
+		s := html.CleanString(sel.Text())
+		s = stepNumberRE.ReplaceAllString(s, "")
+		if s != "" {
+			steps = append(steps, s)
+		}
+	})
+	if len(steps) > 0 {
+		return steps, true
+	}
 	return m.schema.Instructions()
 }
 
