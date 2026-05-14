@@ -3,6 +3,7 @@ package schema
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -431,7 +432,12 @@ func getStringValue(node map[string]any, key string) (string, bool) {
 		return "", false
 	}
 
-	return html.CleanString(s), true
+	cleaned := html.CleanString(s)
+	if cleaned == "" {
+		return "", false
+	}
+
+	return cleaned, true
 }
 
 func getSliceValue(node map[string]any, key string) ([]string, bool) {
@@ -460,21 +466,71 @@ func getDurationValue(node map[string]any, key string) (time.Duration, bool) {
 		return 0, false
 	}
 
-	dur, err := duration.ParseISO8601(v)
-	if err != nil {
+	td, ok := parseDuration(v)
+	if !ok {
 		return 0, false
 	}
-
-	var td time.Duration
-	td += time.Duration(dur.TH) * time.Hour
-	td += time.Duration(dur.TM) * time.Minute
-	td += time.Duration(dur.TS) * time.Second
 
 	if td == 0 {
 		return 0, false
 	}
 
 	return td, true
+}
+
+// looseDurationRE matches ISO 8601-ish duration components.
+// Used as a fallback for malformed values like "PT0D0H30M" (which puts
+// D after T) that some recipe sites emit.
+var looseDurationRE = regexp.MustCompile(`(\d+(?:\.\d+)?)\s*([DHMS])`)
+
+// parseDuration parses an ISO 8601 duration, falling back to a tolerant
+// regex-based parser for malformed values that real-world recipe sites
+// occasionally produce.
+func parseDuration(v string) (time.Duration, bool) {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return 0, false
+	}
+
+	if dur, err := duration.ParseISO8601(v); err == nil {
+		var td time.Duration
+		td += time.Duration(dur.TH) * time.Hour
+		td += time.Duration(dur.TM) * time.Minute
+		td += time.Duration(dur.TS) * time.Second
+
+		if td > 0 {
+			return td, true
+		}
+	}
+
+	// Fallback: pull all <num><unit> pairs out of the string. This handles
+	// malformed values like "PT0D0H30M" (D must come before T per spec).
+	matches := looseDurationRE.FindAllStringSubmatch(strings.ToUpper(v), -1)
+	if len(matches) == 0 {
+		return 0, false
+	}
+
+	var td time.Duration
+
+	for _, m := range matches {
+		n, err := strconv.ParseFloat(m[1], 64)
+		if err != nil {
+			continue
+		}
+
+		switch m[2] {
+		case "D":
+			td += time.Duration(n * float64(24*time.Hour))
+		case "H":
+			td += time.Duration(n * float64(time.Hour))
+		case "M":
+			td += time.Duration(n * float64(time.Minute))
+		case "S":
+			td += time.Duration(n * float64(time.Second))
+		}
+	}
+
+	return td, td > 0
 }
 
 func parseFloatFromAny(v any) (float32, bool) {
