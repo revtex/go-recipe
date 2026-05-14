@@ -2,9 +2,11 @@ package custom
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/kkyr/go-recipe"
+	"github.com/kkyr/go-recipe/internal/html"
 	"github.com/kkyr/go-recipe/internal/html/scrape/schema"
 
 	"github.com/PuerkitoBio/goquery"
@@ -55,8 +57,40 @@ func (m *HelloFreshScraper) Ingredients() ([]string, bool) {
 	return m.schema.Ingredients()
 }
 
+// Instructions returns the recipe instructions. hellofresh.com stores every
+// step as a single HowToStep whose text is an HTML fragment containing a
+// <ul><li>...</li></ul> list of sub-steps, so the default schema parser
+// returns each step as a wall of HTML markup. Override it to split on the
+// list items and strip the tags, producing one entry per actual sub-step.
 func (m *HelloFreshScraper) Instructions() ([]string, bool) {
-	return m.schema.Instructions()
+	raw, ok := m.schema.Instructions()
+	if !ok {
+		return nil, false
+	}
+
+	var steps []string
+	for _, r := range raw {
+		doc, err := goquery.NewDocumentFromReader(strings.NewReader(r))
+		if err != nil {
+			steps = append(steps, html.CleanString(r))
+			continue
+		}
+		items := doc.Find("li")
+		if items.Length() == 0 {
+			steps = append(steps, html.CleanString(doc.Text()))
+			continue
+		}
+		items.Each(func(_ int, sel *goquery.Selection) {
+			if s := html.CleanString(sel.Text()); s != "" {
+				steps = append(steps, s)
+			}
+		})
+	}
+
+	if len(steps) == 0 {
+		return nil, false
+	}
+	return steps, true
 }
 
 func (m *HelloFreshScraper) Language() (string, bool) {
