@@ -2,6 +2,7 @@ package recipe
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 
@@ -13,16 +14,37 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-type httpClient interface {
-	Get(url string) ([]byte, error)
-}
+var defaultFetcher recipe.Fetcher = http.NewClient()
 
-var client httpClient = http.NewClient()
+// NewHTTPFetcher returns the default HTTP fetcher used by ScrapeURL.
+//
+// It performs a simple GET with a desktop User-Agent and works for most
+// recipe sites. Sites behind JavaScript-based bot protection (e.g. Vercel
+// challenges, Cloudflare Turnstile) will fail with this fetcher; supply a
+// custom recipe.Fetcher via ScrapeURLWithFetcher in that case.
+func NewHTTPFetcher() recipe.Fetcher {
+	return http.NewClient()
+}
 
 // ScrapeURL retrieves the source at the provided url and returns a
 // Scraper that scrapes recipe data from the retrieved HTML.
+//
+// It uses the built-in HTTP fetcher. For sites behind bot protection or
+// to provide custom transport behavior, use ScrapeURLWithFetcher.
 func ScrapeURL(urlStr string) (recipe.Scraper, error) {
-	body, err := client.Get(urlStr)
+	return ScrapeURLWithFetcher(context.Background(), urlStr, defaultFetcher)
+}
+
+// ScrapeURLWithFetcher retrieves the source at the provided url using the
+// supplied Fetcher and returns a Scraper that scrapes recipe data from the
+// retrieved HTML.
+//
+// Use this when the default fetcher cannot reach the site (for example,
+// sites behind JavaScript-based bot protection) and pass a Fetcher that
+// can — typically one backed by a headless browser or a third-party
+// scraping service.
+func ScrapeURLWithFetcher(ctx context.Context, urlStr string, fetcher recipe.Fetcher) (recipe.Scraper, error) {
+	body, err := fetcher.Fetch(ctx, urlStr)
 	if err != nil {
 		return nil, fmt.Errorf("unable to GET url: %w", err)
 	}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"fmt"
 	"go/format"
@@ -60,7 +61,7 @@ func run(domain, urlStr string) {
 
 	log.Printf("DEBUG: using scrapers directory %q", dir)
 
-	body, err := http.NewClient().Get(urlStr)
+	body, err := http.NewClient().Fetch(context.Background(), urlStr)
 	if err != nil {
 		log.Fatalf("ERROR: failed to GET url: %v", err)
 	}

@@ -1,6 +1,7 @@
 package recipe
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -11,12 +12,12 @@ import (
 	"github.com/kkyr/assert"
 )
 
-type mockHTTPClient struct {
-	GetFunc func(url string) ([]byte, error)
+type mockFetcher struct {
+	FetchFunc func(ctx context.Context, url string) ([]byte, error)
 }
 
-func (m *mockHTTPClient) Get(url string) ([]byte, error) {
-	return m.GetFunc(url)
+func (m *mockFetcher) Fetch(ctx context.Context, url string) ([]byte, error) {
+	return m.FetchFunc(ctx, url)
 }
 
 const htmlSchemaRecipe = `<html>
@@ -34,8 +35,8 @@ const htmlSchemaRecipe = `<html>
 func TestScrapeURL(t *testing.T) {
 	assert := assert.New(t)
 
-	client = &mockHTTPClient{
-		GetFunc: func(url string) ([]byte, error) {
+	defaultFetcher = &mockFetcher{
+		FetchFunc: func(ctx context.Context, url string) ([]byte, error) {
 			return []byte(htmlSchemaRecipe), nil
 		},
 	}
@@ -71,8 +72,8 @@ func TestScrapeURL_Err(t *testing.T) {
 	assert := assert.New(t)
 
 	t.Run("using bad document", func(t *testing.T) {
-		client = &mockHTTPClient{
-			GetFunc: func(url string) ([]byte, error) {
+		defaultFetcher = &mockFetcher{
+			FetchFunc: func(ctx context.Context, url string) ([]byte, error) {
 				return []byte("not an html document"), nil
 			},
 		}
@@ -84,8 +85,8 @@ func TestScrapeURL_Err(t *testing.T) {
 	t.Run("bad request", func(t *testing.T) {
 		boom := fmt.Errorf("boom")
 
-		client = &mockHTTPClient{
-			GetFunc: func(url string) ([]byte, error) {
+		defaultFetcher = &mockFetcher{
+			FetchFunc: func(ctx context.Context, url string) ([]byte, error) {
 				return nil, boom
 			},
 		}
