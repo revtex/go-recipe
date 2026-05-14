@@ -119,9 +119,15 @@ func (r *RecipeScraper) ImageURL() (string, bool) {
 	}
 
 	if ss, ok := node.([]any); ok {
-		if len(ss) > 0 {
-			if s, ok := ss[0].(string); ok {
+		for _, item := range ss {
+			if s, ok := item.(string); ok && s != "" {
 				return html.CleanString(s), true
+			}
+
+			if m, ok := item.(map[string]any); ok {
+				if url, ok := getStringValue(m, "url"); ok {
+					return url, true
+				}
 			}
 		}
 	}
