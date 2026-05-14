@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -267,7 +268,7 @@ func (r *RecipeScraper) PrepTime() (time.Duration, bool) {
 
 // Ratings returns the average rating of the recipe from schema.org AggregateRating.
 func (r *RecipeScraper) Ratings() (float32, bool) {
-	if m, ok := r.root["aggregateRating"].(map[string]any); ok {
+	if m := r.getAggregateRating(); m != nil {
 		for _, key := range []string{"ratingValue", "value"} {
 			if v, ok := parseFloatFromAny(m[key]); ok && v > 0 {
 				return v, true
@@ -279,7 +280,7 @@ func (r *RecipeScraper) Ratings() (float32, bool) {
 
 // RatingsCount returns the total number of ratings from schema.org AggregateRating.
 func (r *RecipeScraper) RatingsCount() (int, bool) {
-	if m, ok := r.root["aggregateRating"].(map[string]any); ok {
+	if m := r.getAggregateRating(); m != nil {
 		for _, key := range []string{"ratingCount", "reviewCount"} {
 			if v, ok := parseIntFromAny(m[key]); ok && v > 0 {
 				return v, true
@@ -289,11 +290,58 @@ func (r *RecipeScraper) RatingsCount() (int, bool) {
 	return 0, false
 }
 
+// getAggregateRating returns the aggregateRating map from the recipe node,
+// or falls back to scanning separate JSON-LD blocks that reference the same @id.
+func (r *RecipeScraper) getAggregateRating() map[string]any {
+	if m, ok := r.root["aggregateRating"].(map[string]any); ok {
+		return m
+	}
+
+	// Some sites (e.g. BBC Good Food) put aggregateRating in a separate
+	// JSON-LD block that references the Recipe via @id.
+	if r.doc == nil {
+		return nil
+	}
+
+	recipeID, _ := r.root["@id"].(string)
+	if recipeID == "" {
+		recipeID, _ = r.root["id"].(string)
+	}
+	if recipeID == "" {
+		return nil
+	}
+
+	var result map[string]any
+
+	r.doc.Find(`script[type="application/ld+json"]`).Each(func(_ int, sel *goquery.Selection) {
+		if result != nil {
+			return
+		}
+
+		var data map[string]any
+		if err := json.Unmarshal([]byte(sel.Text()), &data); err != nil {
+			return
+		}
+
+		id, _ := data["@id"].(string)
+		if id != recipeID {
+			return
+		}
+
+		if m, ok := data["aggregateRating"].(map[string]any); ok {
+			result = m
+		}
+	})
+
+	return result
+}
+
 // SiteName returns the name of the website. Checks OpenGraph og:site_name and the HTML title.
 func (r *RecipeScraper) SiteName() (string, bool) {
 	if r.doc != nil {
-		// Try OpenGraph og:site_name
-		if val, exists := r.doc.Find(`meta[property="og:site_name"]`).Attr("content"); exists {
+		// Try OpenGraph og:site_name (may use property= or name= attribute)
+		sel := r.doc.Find(`meta[property="og:site_name"], meta[name="og:site_name"]`).First()
+		if val, exists := sel.Attr("content"); exists {
 			name := html.CleanString(val)
 			if name != "" {
 				return name, true

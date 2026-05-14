@@ -30,6 +30,8 @@ func TestNewBBCGoodFoodScraper(t *testing.T) {
 		Nutrition:    recipe.Nutrition{Calories: 495, CarbohydrateGrams: 66, CholesterolMilligrams: 0, FatGrams: 19, FiberGrams: 6, ProteinGrams: 13, SaturatedFatGrams: 3, ServingSize: "", SodiumMilligrams: 1.8, SugarGrams: 8, TransFatGrams: 0, UnsaturatedFatGrams: 0},
 		Keywords:     []string{"Anchovies", "Budget", "Capers", "Esther Clark", "Low calorie", "Olives", "Puttanesca", "Spaghetti"},
 		PrepTime:     15 * time.Minute,
+		Ratings:      5.0,
+		RatingsCount: 249,
 		SiteName:     "Good Food",
 		TotalTime:    35 * time.Minute,
 	}

@@ -16,6 +16,17 @@ linters:
 
 issues:
   exclude-rules:
+    - path: cmd/
+      linters:
+        - cyclop
+        - depguard
+        - errchkjson
+        - forbidigo
+        - funlen
+        - gocognit
+        - gocyclo
+        - mnd
+        - wsl
     - path: internal/html/scrape/custom/
       linters:
         - dupl
