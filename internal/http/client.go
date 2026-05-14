@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -39,9 +40,8 @@ func (c *Client) Fetch(ctx context.Context, url string) ([]byte, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		if resp.Header.Get("x-vercel-mitigated") == "challenge" ||
-			resp.Header.Get("cf-mitigated") == "challenge" {
-			return nil, fmt.Errorf("site requires JavaScript challenge (bot protection); use a Fetcher backed by a headless browser: status %d", resp.StatusCode)
+		if isBotProtection(resp) {
+			return nil, fmt.Errorf("site is behind bot protection (likely requires JavaScript/TLS fingerprinting); use a Fetcher backed by a headless browser or scraping service: status %d", resp.StatusCode)
 		}
 
 		return nil, fmt.Errorf("received non-200 status code in response: %d", resp.StatusCode)
@@ -55,3 +55,42 @@ func (c *Client) Fetch(ctx context.Context, url string) ([]byte, error) {
 	return b, nil
 }
 
+// isBotProtection returns true if the response carries fingerprints of a
+// well-known bot-protection service that blocks plain HTTP clients.
+func isBotProtection(resp *http.Response) bool {
+	// Vercel challenge
+	if resp.Header.Get("x-vercel-mitigated") == "challenge" {
+		return true
+	}
+
+	// Cloudflare challenge / Turnstile
+	if resp.Header.Get("cf-mitigated") == "challenge" {
+		return true
+	}
+	if strings.Contains(resp.Header.Get("server"), "cloudflare") &&
+		(resp.StatusCode == http.StatusForbidden || resp.StatusCode == 503) {
+		return true
+	}
+
+	// Akamai Bot Manager surfaces an `ak_p` entry in server-timing on blocks.
+	if resp.StatusCode == http.StatusForbidden {
+		for _, v := range resp.Header.Values("Server-Timing") {
+			if strings.Contains(v, "ak_p") {
+				return true
+			}
+		}
+	}
+
+	// DataDome
+	if resp.Header.Get("x-datadome") != "" ||
+		resp.Header.Get("x-dd-b") != "" {
+		return true
+	}
+
+	// PerimeterX
+	if resp.Header.Get("x-px-block") != "" {
+		return true
+	}
+
+	return false
+}
