@@ -421,8 +421,27 @@ func getInstructions(nodes []any) []string {
 
 		if m, ok := instr.(map[string]any); ok {
 			if m["type"] == "HowToStep" {
-				if step, ok := m["text"].(string); ok {
-					ret = append(ret, html.CleanString(step))
+				step, _ := m["text"].(string)
+				step = html.CleanString(step)
+				if name, ok := m["name"].(string); ok {
+					name = html.CleanString(name)
+					// Some sites repeat the text as the name; only prefix when
+					// the name is a distinct heading from the text body.
+					bare := strings.TrimRight(name, ":")
+					if name != "" && name != step && !strings.HasPrefix(step, name) && !strings.HasPrefix(step, bare) {
+						if step == "" {
+							step = name
+						} else {
+							sep := " "
+							if !strings.HasSuffix(name, ":") {
+								sep = ": "
+							}
+							step = name + sep + step
+						}
+					}
+				}
+				if step != "" {
+					ret = append(ret, step)
 				}
 			} else if items, ok := m["itemListElement"].([]any); ok {
 				ret = append(ret, getInstructions(items)...)
