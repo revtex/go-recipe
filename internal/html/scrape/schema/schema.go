@@ -214,7 +214,14 @@ func (r *RecipeScraper) IngredientGroups() ([]recipe.IngredientGroup, bool) {
 
 // Instructions are all the steps in making the recipe.
 func (r *RecipeScraper) Instructions() ([]string, bool) {
-	if nodes, ok := r.root["recipeInstructions"].([]any); ok {
+	nodes, ok := r.root["recipeInstructions"].([]any)
+	if !ok {
+		// Some sites emit a single HowToStep object instead of an array.
+		if single, ok := r.root["recipeInstructions"].(map[string]any); ok {
+			nodes = []any{single}
+		}
+	}
+	if len(nodes) > 0 {
 		instructions := getInstructions(nodes)
 		if len(instructions) > 0 {
 			return instructions, true
