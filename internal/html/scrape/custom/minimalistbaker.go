@@ -86,3 +86,31 @@ func (m *MinimalistBakerScraper) TotalTime() (time.Duration, bool) {
 func (m *MinimalistBakerScraper) Yields() (string, bool) {
 	return m.schema.Yields()
 }
+
+func (m *MinimalistBakerScraper) CookingMethod() (string, bool) {
+	return m.schema.CookingMethod()
+}
+
+func (m *MinimalistBakerScraper) Equipment() ([]string, bool) {
+	return m.schema.Equipment()
+}
+
+func (m *MinimalistBakerScraper) IngredientGroups() ([]recipe.IngredientGroup, bool) {
+	return m.schema.IngredientGroups()
+}
+
+func (m *MinimalistBakerScraper) Keywords() ([]string, bool) {
+	return m.schema.Keywords()
+}
+
+func (m *MinimalistBakerScraper) Ratings() (float32, bool) {
+	return m.schema.Ratings()
+}
+
+func (m *MinimalistBakerScraper) RatingsCount() (int, bool) {
+	return m.schema.RatingsCount()
+}
+
+func (m *MinimalistBakerScraper) SiteName() (string, bool) {
+	return m.schema.SiteName()
+}

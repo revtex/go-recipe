@@ -33,6 +33,7 @@ func TestNewRecipeScraper(t *testing.T) {
 		ImageURL:     "https://images.immediate.co.uk/production/volatile/sites/30/2020/08/hdp-noodle-salad-440-400-76177ff.jpg?resize=768,574",
 		Ingredients:  []string{"1 tbsp sesame oil", "2 tsp tamari", "1 lemon , juiced", "1 red chilli , deseeded and finely chopped", "1 small onion , finely chopped", "2 wholemeal noodle nests (about 100g)", "160g sugar snap peas", "4 small clementines , peeled and chopped", "160g shredded carrots", "large handful of coriander , chopped", "50g roasted unsalted cashews"},
 		Instructions: []string{"Mix all the dressing ingredients together in a large bowl, then stir in the onion. Meanwhile, cook the noodles in a pan of boiling water for 5 mins, adding the sugar snap peas halfway through the cooking time – the noodles and peas should be just tender. Drain, cool under cold running water and drain again. Snip or cut the noodles into smaller lengths to make them more manageable to eat.", "Tip the noodles and peas into the bowl with the dressing, along with the clementines, carrots, coriander and cashews. Toss to combine, then serve in bowls or pack into rigid airtight containers to take to work."},
+		Keywords:     []string{"3 of 5-a-day", "Fibre", "Folate", "healthy diet plan", "Omega 3", "Sara Buenfeld", "Sarah Lienard", "Summer", "Vitamin c"},
 		Language:     "",
 		Name:         "Noodle salad with sesame dressing",
 		Nutrition: recipe.Nutrition{

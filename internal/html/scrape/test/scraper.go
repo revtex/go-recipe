@@ -18,21 +18,28 @@ import (
 // recipe.Scraper and then call Run(). Defined values will be validated for an exact match
 // and zero values will be validated that nothing is returned.
 type Scraper struct {
-	Author        string
-	Categories    []string
-	CookTime      time.Duration
-	Cuisine       []string
-	Description   string
-	ImageURL      string
-	Ingredients   []string
-	Instructions  []string
-	Language      string
-	Name          string
-	Nutrition     recipe.Nutrition
-	PrepTime      time.Duration
-	SuitableDiets []recipe.Diet
-	TotalTime     time.Duration
-	Yields        string
+	Author           string
+	Categories       []string
+	CookTime         time.Duration
+	CookingMethod    string
+	Cuisine          []string
+	Description      string
+	Equipment        []string
+	ImageURL         string
+	IngredientGroups []recipe.IngredientGroup
+	Ingredients      []string
+	Instructions     []string
+	Keywords         []string
+	Language         string
+	Name             string
+	Nutrition        recipe.Nutrition
+	PrepTime         time.Duration
+	Ratings          float32
+	RatingsCount     int
+	SiteName         string
+	SuitableDiets    []recipe.Diet
+	TotalTime        time.Duration
+	Yields           string
 }
 
 // Run runs the test and compares struct values against those returned by the scraper.
@@ -58,6 +65,12 @@ func (s *Scraper) Run(t *testing.T, scraper recipe.Scraper) {
 		Verify(t, wantOK, ok, wantVal, got)
 	})
 
+	t.Run("cookingMethod", func(t *testing.T) {
+		wantVal, wantOK := s.CookingMethod, !reflect.ValueOf(s.CookingMethod).IsZero()
+		got, ok := scraper.CookingMethod()
+		Verify(t, wantOK, ok, wantVal, got)
+	})
+
 	t.Run("cuisine", func(t *testing.T) {
 		wantVal, wantOK := s.Cuisine, !reflect.ValueOf(s.Cuisine).IsZero()
 		got, ok := scraper.Cuisine()
@@ -67,6 +80,12 @@ func (s *Scraper) Run(t *testing.T, scraper recipe.Scraper) {
 	t.Run("description", func(t *testing.T) {
 		wantVal, wantOK := s.Description, !reflect.ValueOf(s.Description).IsZero()
 		got, ok := scraper.Description()
+		Verify(t, wantOK, ok, wantVal, got)
+	})
+
+	t.Run("equipment", func(t *testing.T) {
+		wantVal, wantOK := s.Equipment, !reflect.ValueOf(s.Equipment).IsZero()
+		got, ok := scraper.Equipment()
 		Verify(t, wantOK, ok, wantVal, got)
 	})
 
@@ -85,6 +104,12 @@ func (s *Scraper) Run(t *testing.T, scraper recipe.Scraper) {
 	t.Run("instructions", func(t *testing.T) {
 		wantVal, wantOK := s.Instructions, !reflect.ValueOf(s.Instructions).IsZero()
 		got, ok := scraper.Instructions()
+		Verify(t, wantOK, ok, wantVal, got)
+	})
+
+	t.Run("keywords", func(t *testing.T) {
+		wantVal, wantOK := s.Keywords, !reflect.ValueOf(s.Keywords).IsZero()
+		got, ok := scraper.Keywords()
 		Verify(t, wantOK, ok, wantVal, got)
 	})
 
@@ -109,6 +134,24 @@ func (s *Scraper) Run(t *testing.T, scraper recipe.Scraper) {
 	t.Run("prepTime", func(t *testing.T) {
 		wantVal, wantOK := s.PrepTime, !reflect.ValueOf(s.PrepTime).IsZero()
 		got, ok := scraper.PrepTime()
+		Verify(t, wantOK, ok, wantVal, got)
+	})
+
+	t.Run("ratings", func(t *testing.T) {
+		wantVal, wantOK := s.Ratings, !reflect.ValueOf(s.Ratings).IsZero()
+		got, ok := scraper.Ratings()
+		Verify(t, wantOK, ok, wantVal, got)
+	})
+
+	t.Run("ratingsCount", func(t *testing.T) {
+		wantVal, wantOK := s.RatingsCount, !reflect.ValueOf(s.RatingsCount).IsZero()
+		got, ok := scraper.RatingsCount()
+		Verify(t, wantOK, ok, wantVal, got)
+	})
+
+	t.Run("siteName", func(t *testing.T) {
+		wantVal, wantOK := s.SiteName, !reflect.ValueOf(s.SiteName).IsZero()
+		got, ok := scraper.SiteName()
 		Verify(t, wantOK, ok, wantVal, got)
 	})
 

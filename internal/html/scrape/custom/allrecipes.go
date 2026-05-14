@@ -86,3 +86,31 @@ func (m *AllRecipesScraper) TotalTime() (time.Duration, bool) {
 func (m *AllRecipesScraper) Yields() (string, bool) {
 	return m.schema.Yields()
 }
+
+func (m *AllRecipesScraper) CookingMethod() (string, bool) {
+	return m.schema.CookingMethod()
+}
+
+func (m *AllRecipesScraper) Equipment() ([]string, bool) {
+	return m.schema.Equipment()
+}
+
+func (m *AllRecipesScraper) IngredientGroups() ([]recipe.IngredientGroup, bool) {
+	return m.schema.IngredientGroups()
+}
+
+func (m *AllRecipesScraper) Keywords() ([]string, bool) {
+	return m.schema.Keywords()
+}
+
+func (m *AllRecipesScraper) Ratings() (float32, bool) {
+	return m.schema.Ratings()
+}
+
+func (m *AllRecipesScraper) RatingsCount() (int, bool) {
+	return m.schema.RatingsCount()
+}
+
+func (m *AllRecipesScraper) SiteName() (string, bool) {
+	return m.schema.SiteName()
+}

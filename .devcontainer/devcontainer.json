@@ -1,0 +1,19 @@
+{
+  "name": "go-recipe",
+  "image": "mcr.microsoft.com/devcontainers/go:2-1.26-trixie",
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "postCreateCommand": "go mod download && go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go"
+      ],
+      "settings": {
+        "go.lintTool": "golangci-lint",
+        "go.lintFlags": ["--fast"]
+      }
+    }
+  }
+}

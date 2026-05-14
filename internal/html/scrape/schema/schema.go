@@ -2,6 +2,7 @@ package schema
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,17 +22,18 @@ func NewRecipeScraper(doc *goquery.Document) (*RecipeScraper, error) {
 		return nil, fmt.Errorf("could not get recipe root from ld+json document: %w", err)
 	}
 
-	return newRecipeScraper(node), nil
+	return newRecipeScraper(doc, node), nil
 }
 
-func newRecipeScraper(data map[string]any) *RecipeScraper {
-	return &RecipeScraper{root: data}
+func newRecipeScraper(doc *goquery.Document, data map[string]any) *RecipeScraper {
+	return &RecipeScraper{doc: doc, root: data}
 }
 
 var _ recipe.Scraper = (*RecipeScraper)(nil)
 
 // RecipeScraper is a recipe scraper.
 type RecipeScraper struct {
+	doc  *goquery.Document
 	root map[string]any
 }
 
@@ -63,6 +65,11 @@ func (r *RecipeScraper) CookTime() (time.Duration, bool) {
 	return getDurationValue(r.root, "cookTime")
 }
 
+// CookingMethod is the method of cooking used, e.g. frying, steaming, etc.
+func (r *RecipeScraper) CookingMethod() (string, bool) {
+	return getStringValue(r.root, "cookingMethod")
+}
+
 // Cuisine is the cuisine of the recipe, e.g. mexican-inspired, french, etc.
 func (r *RecipeScraper) Cuisine() ([]string, bool) {
 	return getSliceValue(r.root, "recipeCuisine")
@@ -71,6 +78,31 @@ func (r *RecipeScraper) Cuisine() ([]string, bool) {
 // Description is the description of the recipe.
 func (r *RecipeScraper) Description() (string, bool) {
 	return getStringValue(r.root, "description")
+}
+
+// Equipment returns the equipment needed for the recipe.
+// Checks schema.org tool property and WPRM (WordPress Recipe Maker) equipment.
+func (r *RecipeScraper) Equipment() ([]string, bool) {
+	// Check schema.org "tool" property
+	if ss, ok := getSliceValue(r.root, "tool"); ok {
+		return ss, true
+	}
+
+	// Check for WPRM equipment in the HTML
+	if r.doc != nil {
+		var equipment []string
+		r.doc.Find(".wprm-recipe-equipment .wprm-recipe-equipment-name").Each(func(_ int, sel *goquery.Selection) {
+			name := html.CleanString(sel.Text())
+			if name != "" {
+				equipment = append(equipment, name)
+			}
+		})
+		if len(equipment) > 0 {
+			return equipment, true
+		}
+	}
+
+	return nil, false
 }
 
 // ImageURL is a URL to an image of the dish.
@@ -105,6 +137,73 @@ func (r *RecipeScraper) Ingredients() ([]string, bool) {
 	return getSliceValue(r.root, "ingredients")
 }
 
+// IngredientGroups returns ingredients organized into groups.
+// Falls back to WPRM HTML groups, then wraps flat Ingredients() in a single group.
+func (r *RecipeScraper) IngredientGroups() ([]recipe.IngredientGroup, bool) {
+	// Try WPRM ingredient groups from HTML
+	if r.doc != nil {
+		var groups []recipe.IngredientGroup
+		r.doc.Find(".wprm-recipe-ingredient-group").Each(func(_ int, sel *goquery.Selection) {
+			var purpose string
+			if header := sel.Find(".wprm-recipe-group-name"); header.Length() > 0 {
+				purpose = html.CleanString(header.Text())
+			}
+			var ingredients []string
+			sel.Find(".wprm-recipe-ingredient").Each(func(_ int, li *goquery.Selection) {
+				ing := html.CleanString(li.Text())
+				if ing != "" {
+					ingredients = append(ingredients, ing)
+				}
+			})
+			if len(ingredients) > 0 {
+				groups = append(groups, recipe.IngredientGroup{
+					Purpose:     purpose,
+					Ingredients: ingredients,
+				})
+			}
+		})
+		if len(groups) > 0 {
+			return groups, true
+		}
+	}
+
+	// Check HowToSection-style ingredient groups in schema
+	if sections, ok := r.root["recipeIngredient"].([]any); ok {
+		var groups []recipe.IngredientGroup
+		for _, section := range sections {
+			if m, ok := section.(map[string]any); ok {
+				if t, _ := m["type"].(string); t == "HowToSection" {
+					purpose, _ := m["name"].(string)
+					var ingredients []string
+					if items, ok := m["itemListElement"].([]any); ok {
+						for _, item := range items {
+							if s, ok := item.(string); ok {
+								ingredients = append(ingredients, html.CleanString(s))
+							}
+						}
+					}
+					if len(ingredients) > 0 {
+						groups = append(groups, recipe.IngredientGroup{
+							Purpose:     html.CleanString(purpose),
+							Ingredients: ingredients,
+						})
+					}
+				}
+			}
+		}
+		if len(groups) > 0 {
+			return groups, true
+		}
+	}
+
+	// Fall back to wrapping flat ingredients in a single group
+	if ingredients, ok := r.Ingredients(); ok {
+		return []recipe.IngredientGroup{{Ingredients: ingredients}}, true
+	}
+
+	return nil, false
+}
+
 // Instructions are all the steps in making the recipe.
 func (r *RecipeScraper) Instructions() ([]string, bool) {
 	if nodes, ok := r.root["recipeInstructions"].([]any); ok {
@@ -115,6 +214,25 @@ func (r *RecipeScraper) Instructions() ([]string, bool) {
 	}
 
 	return nil, false
+}
+
+// Keywords returns the tags or keywords for the recipe.
+func (r *RecipeScraper) Keywords() ([]string, bool) {
+	if s, ok := r.root["keywords"].(string); ok {
+		ss := strings.Split(s, ",")
+		var keywords []string
+		for _, k := range ss {
+			k = html.CleanString(k)
+			if k != "" {
+				keywords = append(keywords, k)
+			}
+		}
+		if len(keywords) > 0 {
+			return keywords, true
+		}
+	}
+
+	return getSliceValue(r.root, "keywords")
 }
 
 // Language is the language used in the recipe expressed in IETF BCP 47 standard.
@@ -145,6 +263,44 @@ func (r *RecipeScraper) Nutrition() (recipe.Nutrition, bool) {
 // PrepTime is the length of time it takes to prepare the items to be used in the instructions.
 func (r *RecipeScraper) PrepTime() (time.Duration, bool) {
 	return getDurationValue(r.root, "prepTime")
+}
+
+// Ratings returns the average rating of the recipe from schema.org AggregateRating.
+func (r *RecipeScraper) Ratings() (float32, bool) {
+	if m, ok := r.root["aggregateRating"].(map[string]any); ok {
+		for _, key := range []string{"ratingValue", "value"} {
+			if v, ok := parseFloatFromAny(m[key]); ok && v > 0 {
+				return v, true
+			}
+		}
+	}
+	return 0, false
+}
+
+// RatingsCount returns the total number of ratings from schema.org AggregateRating.
+func (r *RecipeScraper) RatingsCount() (int, bool) {
+	if m, ok := r.root["aggregateRating"].(map[string]any); ok {
+		for _, key := range []string{"ratingCount", "reviewCount"} {
+			if v, ok := parseIntFromAny(m[key]); ok && v > 0 {
+				return v, true
+			}
+		}
+	}
+	return 0, false
+}
+
+// SiteName returns the name of the website. Checks OpenGraph og:site_name and the HTML title.
+func (r *RecipeScraper) SiteName() (string, bool) {
+	if r.doc != nil {
+		// Try OpenGraph og:site_name
+		if val, exists := r.doc.Find(`meta[property="og:site_name"]`).Attr("content"); exists {
+			name := html.CleanString(val)
+			if name != "" {
+				return name, true
+			}
+		}
+	}
+	return "", false
 }
 
 // SuitableDiets indicates dietary restrictions or guidelines for which the recipe is suitable.
@@ -260,5 +416,39 @@ func getDurationValue(node map[string]any, key string) (time.Duration, bool) {
 	td += time.Duration(dur.TM) * time.Minute
 	td += time.Duration(dur.TS) * time.Second
 
+	if td == 0 {
+		return 0, false
+	}
+
 	return td, true
+}
+
+func parseFloatFromAny(v any) (float32, bool) {
+	switch val := v.(type) {
+	case float64:
+		return float32(val), true
+	case float32:
+		return val, true
+	case string:
+		f, err := strconv.ParseFloat(strings.TrimSpace(val), 32)
+		if err != nil {
+			return 0, false
+		}
+		return float32(f), true
+	}
+	return 0, false
+}
+
+func parseIntFromAny(v any) (int, bool) {
+	switch val := v.(type) {
+	case float64:
+		return int(val), true
+	case string:
+		i, err := strconv.Atoi(strings.TrimSpace(val))
+		if err != nil {
+			return 0, false
+		}
+		return i, true
+	}
+	return 0, false
 }

@@ -86,3 +86,31 @@ func (m *LoveAndOtherSpicesScraper) TotalTime() (time.Duration, bool) {
 func (m *LoveAndOtherSpicesScraper) Yields() (string, bool) {
 	return m.schema.Yields()
 }
+
+func (m *LoveAndOtherSpicesScraper) CookingMethod() (string, bool) {
+	return m.schema.CookingMethod()
+}
+
+func (m *LoveAndOtherSpicesScraper) Equipment() ([]string, bool) {
+	return m.schema.Equipment()
+}
+
+func (m *LoveAndOtherSpicesScraper) IngredientGroups() ([]recipe.IngredientGroup, bool) {
+	return m.schema.IngredientGroups()
+}
+
+func (m *LoveAndOtherSpicesScraper) Keywords() ([]string, bool) {
+	return m.schema.Keywords()
+}
+
+func (m *LoveAndOtherSpicesScraper) Ratings() (float32, bool) {
+	return m.schema.Ratings()
+}
+
+func (m *LoveAndOtherSpicesScraper) RatingsCount() (int, bool) {
+	return m.schema.RatingsCount()
+}
+
+func (m *LoveAndOtherSpicesScraper) SiteName() (string, bool) {
+	return m.schema.SiteName()
+}

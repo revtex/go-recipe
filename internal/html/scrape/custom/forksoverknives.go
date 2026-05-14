@@ -103,3 +103,31 @@ func (m *ForksOverKnivesScraper) Yields() (string, bool) {
 
 	return m.schema.Yields()
 }
+
+func (m *ForksOverKnivesScraper) CookingMethod() (string, bool) {
+	return m.schema.CookingMethod()
+}
+
+func (m *ForksOverKnivesScraper) Equipment() ([]string, bool) {
+	return m.schema.Equipment()
+}
+
+func (m *ForksOverKnivesScraper) IngredientGroups() ([]recipe.IngredientGroup, bool) {
+	return m.schema.IngredientGroups()
+}
+
+func (m *ForksOverKnivesScraper) Keywords() ([]string, bool) {
+	return m.schema.Keywords()
+}
+
+func (m *ForksOverKnivesScraper) Ratings() (float32, bool) {
+	return m.schema.Ratings()
+}
+
+func (m *ForksOverKnivesScraper) RatingsCount() (int, bool) {
+	return m.schema.RatingsCount()
+}
+
+func (m *ForksOverKnivesScraper) SiteName() (string, bool) {
+	return m.schema.SiteName()
+}
